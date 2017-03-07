@@ -5,6 +5,7 @@
  */
 package com.supinfo.chat;
 
+import com.supinfo.chat.db.LogsDao;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -21,6 +22,14 @@ public class ChatClient {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        try {
+            Class.forName(com.mysql.jdbc.Driver.class.getName());
+        } catch (ClassNotFoundException e) {
+            System.out.println("JDBC Driver not found !");
+        }
+        
+        final LogsDao logsDao = LogsDao.getInstance();
+        
         try(
             Socket socket = new Socket(InetAddress.getLocalHost(), 18000);
             PrintWriter out = new PrintWriter(socket.getOutputStream());
@@ -29,17 +38,7 @@ public class ChatClient {
         ) {
             String userInput;
             
-            new Thread(() -> {
-                String serverInput;
-                
-                try {
-                    while((serverInput = in.readLine()) != null) {
-                        System.out.println(serverInput);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Connexion closed");
-                }
-            }).start();
+            new Thread(new ReadingThread(in)).start();
             
             out.println("username:Zarkus");
             out.flush();
@@ -47,6 +46,8 @@ public class ChatClient {
             while((userInput = stdIn.readLine()) != null) {
                 out.println(userInput);
                 out.flush();
+                
+                logsDao.saveLog("You", userInput);
             }
         } catch (Exception e) {
             e.printStackTrace();
